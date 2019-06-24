@@ -1,0 +1,17 @@
+program teste; {programa exemplo}
+var
+valor1: integer;
+valor2: real;
+valor3: integer;
+valor4: boolean;
+valor_5: boolean;
+valor_final: boolean;
+begin
+valor1 := 10;
+valor2 := 10.100;
+valor3 := 1 + 1;
+valor4 := 2 < 5;
+valor_5 := 5 >= 5;
+if 5 < 2 then valor_final := 4 and 2;
+else valor_final := 42.;
+end.
