@@ -1,6 +1,4 @@
 program Keyword 1
-teste Identifier 1
-; Delimiter 1
 var Keyword 2
 valor1 Identifier 3
 : Delimiter 3
@@ -16,15 +14,15 @@ integer Keyword 5
 ; Delimiter 5
 valor4 Identifier 6
 : Delimiter 6
-boolean Keyword 6
+boolean Identifier 6
 ; Delimiter 6
 valor_5 Identifier 7
 : Delimiter 7
-boolean Keyword 7
+boolean Identifier 7
 ; Delimiter 7
 valor_final Identifier 8
 : Delimiter 8
-boolean Keyword 8
+boolean Identifier 8
 ; Delimiter 8
 begin Keyword 9
 valor1 Identifier 10
