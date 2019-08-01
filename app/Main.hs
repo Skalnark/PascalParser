@@ -24,4 +24,19 @@ main = do
        writeFile "files/tabela_codigo_professor2.txt" (writeTokens source3)
        putStrLn "Tabelas de arquivos gravados"
 
+       table1 <- readFile "files/tabela_meu_codigo.txt"
+       table2 <- readFile "files/tabela_meu_codigo2.txt"
+       table3 <- readFile "files/tabela_codigo_professor1.txt"
+       table4 <- readFile "files/tabela_codigo_professor2.txt"
        putStrLn "Tabelas carregadas"
+
+       parseProg(fromJust (readTable table1))
+       putStrLn("meu_codigo.txt ok")
+       parseProg(fromJust (readTable table2))
+       putStrLn("meu_codigo2.txt ok")
+       parseProg(fromJust (readTable table3))
+       putStrLn("codigo_professor1.txt ok")
+       parseProg(fromJust (readTable table4))
+       putStrLn("codigo_professor2.txt ok")
+
+       putStrLn("finalizado")

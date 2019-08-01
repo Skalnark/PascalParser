@@ -1,7 +1,7 @@
 module Lexer(reservedNames, delimiters, relationalOp, addOp, mulOp,
              Line, Content, Delimiter, Keyword, Identifier, Token(..), Type(..), 
              lexicalAnalysis, showToken, writeTokens, mapType, makeType, rewrite,
-             isIdentifier, isNumberStr, getLineNumber, getContent, getType, find)
+             isIdentifier, isNumberStr, getLineNumber, getContent, getType, find, showErrors)
   where
   
   import Data.Maybe
@@ -127,6 +127,9 @@ module Lexer(reservedNames, delimiters, relationalOp, addOp, mulOp,
   showToken (Just (Token (c, Nothing, l))) = "Error: " ++ c ++ " on line " ++ (show l) ++ "\n"
   showToken (Just (Token (c, Just t, l))) = c ++ " " ++ (show t) ++ " " ++ (show l) ++ "\n"
                                        
+  showErrors :: Token -> String
+  showErrors (Token (c, Nothing, l)) = "Error: " ++ c ++ "on line " ++ (show l) ++ "\n"
+  showErrors t = "\n"
 
   writeTokens :: String -> String
   writeTokens "" = "empty"

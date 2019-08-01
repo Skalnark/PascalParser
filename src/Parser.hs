@@ -1,4 +1,4 @@
-module Parser (parseToken, readTable, parseProg, varTypeList)
+module Parser (parseToken, readTable, parseProg, varTypeList, parseExp, isTermExp)
   where
 
     import Data.Maybe
@@ -12,6 +12,7 @@ module Parser (parseToken, readTable, parseProg, varTypeList)
                 ("RealNumber", RealNumber)]
 
     varTypeList = ["real", "integer", "boolean"]
+    
     strToType :: String -> Maybe Type
     strToType "" = Nothing
     strToType s  = let x = (findThis s typeName)
@@ -41,13 +42,24 @@ module Parser (parseToken, readTable, parseProg, varTypeList)
     pop (l:lst) (r:rs) = if r == l then pop lst rs
                     else (l:lst)
 
+    isTermExp :: Token -> Bool
+    isTermExp (Token(_, Just Identifier, _))    = True
+    isTermExp (Token(_, Just IntegerNumber, _)) = True
+    isTermExp (Token(_, Just RealNumber, _))    = True
+    isTermExp (Token("true", _, _))             = True
+    isTermExp (Token("false", _, _))            = True
+    isTermExp (Token("not", _, _))              = True
+    isTermExp (Token("(", _, _))                = True
+    isTermExp (_)                               = False
+
     parseToken :: String -> Maybe Token
     parseToken ""        = Just (Token ("empty string", Just Lexer.Identifier, 0))
     parseToken (s:[])    = Just (Token ("empty string", Just Lexer.Identifier, 0))
     parseToken s = let c = (Sp.splitOn " " s)
                    in if (length c) == 3 then
                         make c
-                      else Just (Token ("error while parsing tokens", Just Lexer.Identifier, 0))
+                      else Just (Token ("error while parsing token " ++
+                                        (head c), Nothing, 0))
                       where
                         make :: [String] -> Maybe Token
                         make []  = Nothing
@@ -75,9 +87,11 @@ module Parser (parseToken, readTable, parseProg, varTypeList)
                                      cc = parseCC sp
                                   in if cc == [] then do {return True} 
                                   else do 
-                                    { putStrLn $ "VDL:" ++ (show sv)
-                                    ; putStrLn $ "Parse SP:" ++ (show sp)
-                                    ; putStrLn $ "Parse CC:" ++ (show cc)
+                                    { putStrLn "Parse error:"
+                                    ; putStrLn ((getContent (head cc)) ++ " " ++
+                                                show (fromJust (getType (head cc))) ++
+                                                 " on line " ++ 
+                                                (show (getLineNumber (head cc))))
                                     ; return False}
                          else do{ putStrLn ("'.' missing" ++ (show (getLineNumber l)))
                                 ; return False}
@@ -142,110 +156,146 @@ module Parser (parseToken, readTable, parseProg, varTypeList)
     parseCC ((Token("begin", Just Keyword, n)):
              tks) = let l = last tks 
                     in if getContent l == "end" && getType l == Just Keyword then
-                         parseLC (init tks)                      
+                         parseOPC (init tks)                      
                        else tks
     parseCC tks = tks
 
     parseOPC [] = []
-    parseOPC ((Token(";", Just Identifier, _)):tks) = parseLC tks
     parseOPC tks = parseLC tks
 
     parseLC :: [Token] -> [Token]
     parseLC [] = []
-    parseLC ((Token(";", Just Delimiter, l)):tks) = parseLC tks
-    parseLC ((Token(_, Just Identifier, l1)):
-             (Token(":=", Just Assignment, l2)):
-             tks) = parseExp tks
-    parseLC ((Token(id, Just Identifier, l)):tks) = parseExp tks
-    parseLC ((Token("if", Just Keyword, l)): tks) = parseIf tks
-      where
-        parseIf :: [Token] -> [Token]
-        parseIf [] = []
-        parseIf tks = parseThen (parseExp tks)
-          where
-            parseThen :: [Token] -> [Token]
-            parseThen [] = [Token("error", Nothing, -1)]
-            parseThen tks = parseElse (parseOPC tks)
-              where
-                parseElse :: [Token] -> [Token]
-                parseElse [] = []
-                parseElse tks = parseCC tks
-    parseLC ((Token("while", Just Keyword, l)):tks) = parseWhile tks
-      where
-        parseWhile :: [Token] -> [Token]
-        parseWhile [] = [Token("error", Nothing, -1)]
-        parseWhile tks = parseDo (parseExp tks)
-          where
-            parseDo :: [Token] -> [Token]
-            parseDo [] = []
-            parseDo tks = parseLC tks
-    parseLC ((Token("case", Just Keyword, _)):
+    parseLC ((Token(";", Just Delimiter, l)):tks) = parseLC (parseC tks)
+    parseLC tks = parseC tks
+
+    parseC :: [Token] -> [Token]
+    parseC ((Token(_, Just Identifier, l1)):
+            (Token(":=", Just Assignment, l2)):
+             tks) = parseLC(parseExp tks)
+
+    parseC ((Token("(", Just Delimiter, l1)):
+            tks) = parseActi tks
+
+    parseC ((Token("begin", Just Keyword, l)):
+             tks) = parseCC ((Token("begin", Just Keyword, l)):tks)
+    parseC ((Token("if", Just Keyword, l)): tks) = parseIf tks
+    parseC ((Token("while", Just Keyword, l)):tks) = parseWhile tks
+    parseC ((Token("case", Just Keyword, _)):
              (Token(_, Just Identifier, _)):
              (Token("of", Just Keyword, _)):
               tks) = parseCase tks
+    parseC tks = tks
+
+    parseIf :: [Token] -> [Token]
+    parseIf [] = []
+    parseIf tks = let k = parseExp tks
+                  in if getContent (head k) == "then"
+                      then 
+                        parseThen (tail k)
+                      else
+                        [Token("Error after if expression: " ++ getContent(head k),
+                              Nothing,
+                              getLineNumber (head k))] 
+
+    parseCase :: [Token] -> [Token]
+    parseCase [] = []
+    parseCase tks = let pc = parseLC tks
+                     in if (getContent (head tks) == "else" && getType (head tks) == Just Keyword)
+                        then parseLC (tail tks)
+                        else tks
+
+    parseWhile :: [Token] -> [Token]
+    parseWhile [] = [Token("error", Nothing, -1)]
+    parseWhile tks = parseDo (parseExp tks)
       where
-        parseCase :: [Token] -> [Token]
-        parseCase [] = []
-        parseCase tks = let pc = parseLC tks
-                         in if (getContent (head tks) == "else" && getType (head tks) == Just Keyword)
-                            then parseLC (tail tks)
-                            else tks
-    parseLC tks = tks
-                            
-    parseExp :: [Token] -> [Token]
-    parseExp [] = []
-    parseExp ((Token(_, Just Identifier, l)):tks) = let n = parseTerm tks
-                                                     in if (getType (head n)) == Just AddOperator then
-                                                           parseTerm (init tks)
-                                                        else tks
-    parseExp ((Token(_, Just AddOperator, l)):tks) = parseTerm tks
-    parseExp tks = parseExp' tks
+        parseDo :: [Token] -> [Token]
+        parseDo [] = []
+        parseDo ((Token("do", Just Keyword, l1)):tks) = parseC tks
+        parseDo tks = tks
+
+    parseThen :: [Token] -> [Token]
+    parseThen [] = [Token("error: end of file after if expression", Nothing, -1)]
+    parseThen tks = parseElse (parseC tks)
       where
-        parseExp' :: [Token] -> [Token]
-        parseExp' [] = []
-        --parseExp' ((Token(_, Just Identifier, l)):tks)  = parseExp tks
-        parseExp' ((Token(_, Just AddOperator, l)):tks) = parseExp tks
-        parseExp' tks = parseExp'' tks
-          where
-            parseExp'' [] = []
-            parseExp'' tks = let k = parseTerm tks
-                              in if getType (head k) == Just AddOperator then
-                                    parseTerm (init tks)
-                                 else
-                                    tks
+        parseElse :: [Token] -> [Token]
+        parseElse [] = []
+        parseElse ((Token("else", Just Keyword, l)):tks) = parseCC tks    
+        parseElse tks = tks    
+         
+    parseActi [] = [Token("error after '('", Nothing, 0)]
+    parseActi ((Token(id, Just Identifier, l)):
+                tks) = let k = last tks
+                        in if getContent k == ")" &&
+                              getType k == Just Delimiter
+                              then 
+                                parseLExp (init tks)
+                           else
+                                tks
+    parseActi tks = tks       
 
     parseLExp :: [Token] -> [Token]
-    parseLExp [] = []
-    parseLExp (t:tks) = let k = parseExp [t]
+    parseLExp [] = [Token("error: empty expressions", Nothing, 0)]
+    parseLExp tks = let k = parseSimpExp tks
                         in if k == [] then
+                             []
+                           else
                              if getContent (head tks) == "," then
-                               parseExp (init tks)
+                               parseLExp (tail tks)
                              else
                                tks
-                           else (t:tks)
-    
-    parseFactor :: [Token] -> [Token]
-    parseFactor [] = []
-    parseFactor ((Token(_, Just Identifier, l)):tks) = parseExp tks
-    parseFactor (Token ((_, Just IntegerNumber, l)):tks) = tks
-    parseFactor (Token ((_, Just RealNumber, l)):tks) = tks
-    parseFactor (Token (("true", Just Keyword, l)):tks) = tks
-    parseFactor (Token (("false", Just Keyword, l)):tks) = tks
-    parseFactor (Token (("not", Just RelOperator, l)):tks) = parseFactor tks
-    parseFactor tks = tks
+
+    parseExp :: [Token] -> [Token]
+    parseExp [] = [Token("Error, empty expression", Nothing, 0)]
+    parseExp ((Token(_, Just RelOperator, l)):tks) = parseExp tks
+    parseExp (t:tks) = if isTermExp t then
+                          parseSimpExp (t:tks)
+                        else
+                          (t:tks)
+
+    parseSimpExp :: [Token] -> [Token]
+    parseSimpExp [] = []
+    parseSimpExp ((Token(_, Just RelOperator, l)):tks)   = parseSimpExp tks
+    parseSimpExp ((Token("+", Just AddOperator, l)):tks) = parseSimpExp tks
+    parseSimpExp ((Token("-", Just AddOperator, l)):tks) = parseSimpExp tks
+    parseSimpExp tks = parseSimpExp' tks
+      where
+        parseSimpExp' [] = []
+        parseSimpExp' (t:tks) = if isTermExp t
+                                then
+                                  parseSimpExp (parseTerm (t:tks))
+                                else 
+                                  (t:tks)
 
     parseTerm :: [Token] -> [Token]
     parseTerm [] = []
     parseTerm (t:tks) = if (parseFactor [t] == []) then
                             parseTerm' tks
-                        else (t:tks) 
+                        else
+                          (t:tks) 
       where
         parseTerm' :: [Token] -> [Token]
-        parseTerm' [] = tks
+        parseTerm' [] = []
         parseTerm' ((Token(_, Just MulOperator, _)):
-                      tks) = parseFactor tks
-        parseTerm' tks = tks
+                     tks) = parseFactor tks
+        parseTerm' tks = parseFactor tks
  
+    
+    parseFactor :: [Token] -> [Token]
+    parseFactor [] = []
+    parseFactor ((Token(_, Just Identifier, l)):tks) = parseExp tks
+    parseFactor ((Token (_, Just IntegerNumber, l)):tks) = tks
+    parseFactor ((Token (_, Just RealNumber, l)):tks) = tks
+    parseFactor ((Token ("true", Just Keyword, l)):tks) = tks
+    parseFactor ((Token ("false", Just Keyword, l)):tks) = tks
+    parseFactor ((Token ("not", Just RelOperator, l)):tks) = parseFactor tks
+    parseFactor ((Token("(", Just Delimiter, l)):tks) = if getContent (head k) == ")" &&
+                                                          getType (head k) == Just Delimiter
+                                                        then
+                                                          parseExp (pop tks (tail k))
+                                                        else tks
+                                                        where k = parseExp tks
+    parseFactor tks = tks
+
     turnProc :: [Token] -> [Token]
     turnProc [] = []
     turnProc (t:tks) = if isID t then 
