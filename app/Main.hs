@@ -30,13 +30,28 @@ main = do
        table4 <- readFile "files/tabela_codigo_professor2.txt"
        putStrLn "Tabelas carregadas"
 
-       parseProg(fromJust (readTable table1))
-       putStrLn("meu_codigo.txt ok")
-       parseProg(fromJust (readTable table2))
-       putStrLn("meu_codigo2.txt ok")
-       parseProg(fromJust (readTable table3))
-       putStrLn("codigo_professor1.txt ok")
-       parseProg(fromJust (readTable table4))
-       putStrLn("codigo_professor2.txt ok")
+       if uRead (parseProg(fromJust (readTable table1))) then
+         putStrLn("meu_codigo.txt ok")
+       else 
+         putStrLn("")
+
+       if uRead (parseProg(fromJust (readTable table2))) then
+         putStrLn("meu_codigo2.txt ok")
+       else
+         putStrLn("")
+
+       if uRead (parseProg(fromJust (readTable table3))) then
+         putStrLn("codigo_professor1.txt ok")
+       else
+         putStrLn("")
+
+       if uRead (parseProg(fromJust (readTable table4))) then
+         putStrLn("codigo_professor2.txt ok")
+       else
+         putStrLn("")
 
        putStrLn("finalizado")
+
+
+uRead :: IO Bool -> Bool
+uRead x = unsafePerformIO(x)
