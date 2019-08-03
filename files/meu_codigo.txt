@@ -1,17 +1,29 @@
 program teste; {programa exemplo}
 var
-valor1: integer;
-valor2: real;
-valor3: integer;
-valor4: boolean;
-valor_5: boolean;
-valor_final: boolean;
+  valor1: integer;
+  valor2: real;
+  valor3: integer;
+  valor4: boolean;
+  valor_5: boolean;
+  valor_final: boolean;
+procedure test (x1, x2, x3);
+  var
+    t1: integer;
+    t2: real;
+    t3: boolean;
+  begin
+    t1 := 42;
+    t2 := t1/2;
+    t3 := t1 < t2;
+  end
 begin
-valor1 := 10;
-valor2 := 10.100;
-valor3 := 1 + 1;
-valor4 := 2 < 5;
-valor_5 := 5 >= 5;
-if 5 < 2 then valor_final := 4 and 2;
-else valor_final := 42.;
+  valor1 := 10;
+  valor2 := 10.100;
+  valor3 := 1 + 1 + valor1;
+  valor4 := 2 < 5;
+  valor_5 := 5 >= 5;
+  if 5 < 2 then 
+    valor_final := 4 and 2;
+  else 
+    valor_final := 42.;
 end.

@@ -1,4 +1,4 @@
-module Parser (parseToken, readTable, parseProg, varTypeList, parseExp, isTermExp)
+module Parser (parseToken, readTable, parseProg, varTypeList, parseExp, isTermExp, sublist, pop)
   where
 
     import Data.Maybe
@@ -27,14 +27,14 @@ module Parser (parseToken, readTable, parseProg, varTypeList, parseExp, isTermEx
     toJust :: t -> Maybe t
     toJust t = Just t
 
-    sublist :: [a] -> (a -> Bool) -> [a]
+    sublist :: [Token] -> String -> [Token]
     sublist [] _  = []
-    sublist lst f = sublist' [] f (lst)
+    sublist lst c = sublist' [] c lst
       where
-        sublist' :: [a] -> (a -> Bool) -> [a] -> [a]
+        sublist' :: [Token] -> String -> [Token] -> [Token]
         sublist' rs _ [] = rs
-        sublist' rs f (x:xs) = if f x then reverse (x:rs)
-                       else sublist' (x:rs) f xs
+        sublist' rs c (x:xs) = if c == (getContent x) then reverse (x:rs)
+                       else sublist' (x:rs) c xs
     
     pop :: (Eq a) => [a] -> [a] -> [a]
     pop [] _   = []
@@ -89,9 +89,10 @@ module Parser (parseToken, readTable, parseProg, varTypeList, parseExp, isTermEx
                                   else do 
                                     { putStrLn "Parse error:"
                                     ; putStrLn ((getContent (head cc)) ++ " " ++
-                                                show (fromJust (getType (head cc))) ++
+                                                show (getType (head cc)) ++
                                                  " on line " ++ 
                                                 (show (getLineNumber (head cc))))
+                                    ; print cc
                                     ; return False}
                          else do{ putStrLn ("'.' missing" ++ (show (getLineNumber l)))
                                 ; return False}
@@ -125,17 +126,21 @@ module Parser (parseToken, readTable, parseProg, varTypeList, parseExp, isTermEx
 
     args :: [Token] -> [Token]
     args [] = []
-    args ((Token(id, Just Identifier, n)):tks) = args' tks
-      where
-        args' :: [Token] -> [Token]
+    args ((Token("var", Just Keyword, l)):tks) = args tks
+    args tks = args' tks
+      where 
         args' [] = []
-        args' ((Token(",", Just Delimiter, n))
-                    :tks) = args' (dropWhile (\x -> isID x || getContent x == ",") tks)
-        args' ((Token(":", Just Delimiter, l)):(Token(c, Just Keyword, l1))
-                  :tks) =  if (find c varTypeList) then
-                              args tks
-                           else tks      
-    args tks = tks
+        args' ((Token(id, Just Identifier, n)):tks) = args'' tks
+          where
+            args'' [] = []
+            args'' ((Token(",", Just Delimiter, n))
+                      :tks) = args'' (dropWhile (\x -> isID x || getContent x == ",") tks)
+            args'' ((Token(":", Just Delimiter, l)):(Token(c, Just Keyword, l1))
+                      :tks) =  if (find c varTypeList) then
+                                  args' tks
+                               else tks
+            args'' tks = tks
+        args' tks = tks
 
     isID :: Token -> Bool
     isID (Token(c, Just Identifier, l)) = True
@@ -145,10 +150,34 @@ module Parser (parseToken, readTable, parseProg, varTypeList, parseExp, isTermEx
     parseSP [] = []
     parseSP ((Token("procedure", Just Keyword, n)):
              (Token(_, Just Identifier, n')):
-             tks) = let va = vdl tks
-                        sp = parseSP va
-                        cc = parseCC sp
-                        in cc
+             tks) = let p = (sublist tks "end")
+                     in parseSp' ((args (init p)) ++ (pop tks p))
+      where 
+        parseSp' :: [Token] -> [Token]
+        parseSp' [] = []
+        parseSp' ((Token("(", Just Delimiter, l)):
+                   tks) = let k = sublist tks ")"
+                              in if args (init k) == []
+                                 then
+                                    let i = pop tks k
+                                    in if i /= [] && getContent (head i) == ";"
+                                       then let va = vdl (tail i)
+                                                sp = parseSP va
+                                                cc = parseCC sp
+                                             in cc
+                                       else
+                                            [Token("expected ';' after procedure"++ 
+                                                   "declaration, found: " ++
+                                                    getContent (last k) ++ " instead ",
+                                                    getType (last k), 
+                                                    getLineNumber (last k))]
+                                 else [Token("error parsing arguments on "++ 
+                                 "procedure declaration: " ++
+                                  getContent (head(args (init k))),
+                                  getType (head(args (init k))), 
+                                  getLineNumber (head(args (init k))))]
+        parseSp' (t:tks) = [Token("unexpected symbol after procedure declaration: " ++
+                                  getContent t, getType t, getLineNumber t)]
     parseSP tks = tks
 
     parseCC :: [Token] -> [Token]
@@ -188,10 +217,12 @@ module Parser (parseToken, readTable, parseProg, varTypeList, parseExp, isTermEx
 
     parseIf :: [Token] -> [Token]
     parseIf [] = []
+    parseIf ((Token("(", Just Delimiter, l)):tks) = parseThen((parseExp (init k))++(pop tks k))
+                             where k = sublist tks  ")"
     parseIf tks = let k = parseExp tks
                   in if getContent (head k) == "then"
                       then 
-                        parseThen (tail k)
+                        parseThen k
                       else
                         [Token("Error after if expression: " ++ getContent(head k),
                               Nothing,
@@ -215,12 +246,12 @@ module Parser (parseToken, readTable, parseProg, varTypeList, parseExp, isTermEx
 
     parseThen :: [Token] -> [Token]
     parseThen [] = [Token("error: end of file after if expression", Nothing, -1)]
-    parseThen tks = parseElse (parseC tks)
-      where
-        parseElse :: [Token] -> [Token]
-        parseElse [] = []
-        parseElse ((Token("else", Just Keyword, l)):tks) = parseCC tks    
-        parseElse tks = tks    
+    parseThen ((Token("then", Just Keyword, l)):tks) = parseElse (parseC tks)
+              where
+                parseElse :: [Token] -> [Token]
+                parseElse [] = []
+                parseElse ((Token("else", Just Keyword, l)):tks) = parseCC tks    
+                parseElse tks = tks    
          
     parseActi [] = [Token("error after '('", Nothing, 0)]
     parseActi ((Token(id, Just Identifier, l)):
@@ -282,7 +313,15 @@ module Parser (parseToken, readTable, parseProg, varTypeList, parseExp, isTermEx
     
     parseFactor :: [Token] -> [Token]
     parseFactor [] = []
-    parseFactor ((Token(_, Just Identifier, l)):tks) = parseExp tks
+    parseFactor ((Token(c, Just Identifier, l)):
+                 (Token("(", Just Delimiter, l1)):
+                  tks) = if getContent (last k) == ")"
+                         then parseLC (pop tks (init k))
+                         else ((Token(c, Just Identifier, l)):
+                               (Token("(", Just Delimiter, l1)):
+                                tks) 
+                      where k = sublist tks ")"
+    parseFactor ((Token(_, Just Identifier, l)):tks) = tks
     parseFactor ((Token (_, Just IntegerNumber, l)):tks) = tks
     parseFactor ((Token (_, Just RealNumber, l)):tks) = tks
     parseFactor ((Token ("true", Just Keyword, l)):tks) = tks
@@ -300,9 +339,10 @@ module Parser (parseToken, readTable, parseProg, varTypeList, parseExp, isTermEx
     turnProc [] = []
     turnProc (t:tks) = if isID t then 
                          if getContent (head tks) == "(" then
-                            let lde = sublist (init tks) (\x -> (getContent x) == ")")
-                             in if [] == (parseExp lde) then
-                                    (pop tks lde)
+                            let lde = sublist (tail tks) ")"
+                                sbe = init lde
+                             in if [] == (parseExp sbe) then
+                                    (pop tks sbe)
                                 else
                                   tks
                         else tks
