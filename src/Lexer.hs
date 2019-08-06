@@ -20,7 +20,7 @@ module Lexer(reservedNames, delimiters, relationalOp, addOp, mulOp,
       deriving(Eq, Show)
 
   reservedNames = ["program", "boolean", "var", "integer", "real", "procedure", "begin",
-                   "end", "if", "then", "else", "while", "do", "not"]
+                   "end", "if", "then", "else", "while", "do", "not", "case", "of"]
   delimiters = [",", "(", ")", ".", ":", ";"]
   relationalOp = [">", "<", "=", ">=", "<=", "<>"]
   addOp = ["+", "-"]

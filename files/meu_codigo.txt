@@ -12,9 +12,9 @@ procedure test (x1, x2, x3);
     t2: real;
     t3: boolean;
   begin
-    t1 := 42;
-    t2 := t1/2;
-    t3 := t1 < t2;
+    t1 := 42 + x1;
+    t2 := t1/2 * x2;
+    t3 := t1 * t2 < (x1 * x2) / x3;
   end
 begin
   valor1 := 10;
@@ -23,7 +23,14 @@ begin
   valor4 := 2 < 5;
   valor_5 := 5 >= 5;
   if 5 < 2 then 
-    valor_final := 4 and 2;
+    valor_final := 4 
   else 
     valor_final := 42.;
+  
+  case valor1 of
+    1: valor1 := 5;
+    2: valor1 := valor2 + valor3;
+    5: valor2 := valor1 * valor_5;
+    10: valor_final := true;
+    else valor_final := false;
 end.
