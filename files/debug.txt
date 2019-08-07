@@ -1,6 +1,0 @@
-end Keyword 1
-Keyword Identifier 1
-3 IntegerNumber 1
-. Delimiter 2
-Delimiter Identifier 2
-3 IntegerNumber 2

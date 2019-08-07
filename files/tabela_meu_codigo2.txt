@@ -1,6 +1,0 @@
-program Keyword 1
-teste Identifier 1
-; Delimiter 1
-begin Keyword 2
-end Keyword 3
-. Delimiter 3
